@@ -7,8 +7,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use cosmic_bg_config::state::State;
-use cosmic_bg_config::{Color, Entry, SamplingMethod, ScalingMode, Source};
+use wmde_bg_config::state::State;
+use wmde_bg_config::{Color, Entry, SamplingMethod, ScalingMode, Source};
 use cosmic_config::CosmicConfigEntry;
 use image::{DynamicImage, ImageReader, Limits};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};

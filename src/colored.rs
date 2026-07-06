@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use colorgrad::{Color, Gradient as ColorGradient};
-use cosmic_bg_config::Gradient;
+use wmde_bg_config::Gradient;
 use image::Rgb32FImage;
 use rayon::prelude::*;
 

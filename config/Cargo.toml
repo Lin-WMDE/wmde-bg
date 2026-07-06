@@ -1,5 +1,5 @@
 [package]
-name = "cosmic-bg-config"
+name = "wmde-bg-config"
 version = "1.0.3"
 edition = "2024"
 

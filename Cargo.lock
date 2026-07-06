@@ -416,39 +416,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cosmic-bg"
-version = "1.2.0"
-dependencies = [
- "color-eyre",
- "colorgrad",
- "cosmic-bg-config",
- "cosmic-config",
- "eyre",
- "fast_image_resize",
- "image",
- "jxl-oxide",
- "notify",
- "rand 0.10.1",
- "rayon",
- "smithay-client-toolkit",
- "tempfile",
- "tracing",
- "tracing-subscriber",
- "walkdir",
-]
-
-[[package]]
-name = "cosmic-bg-config"
-version = "1.0.3"
-dependencies = [
- "cosmic-config",
- "derive_setters",
- "image",
- "serde",
- "tracing",
-]
-
-[[package]]
 name = "cosmic-config"
 version = "1.0.0"
 source = "git+https://github.com/pop-os/libcosmic#417923fbafc0f38a63846b307036e4f20fc4960d"
@@ -2972,6 +2939,39 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+
+[[package]]
+name = "wmde-bg"
+version = "1.2.0"
+dependencies = [
+ "color-eyre",
+ "colorgrad",
+ "cosmic-config",
+ "eyre",
+ "fast_image_resize",
+ "image",
+ "jxl-oxide",
+ "notify",
+ "rand 0.10.1",
+ "rayon",
+ "smithay-client-toolkit",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+ "walkdir",
+ "wmde-bg-config",
+]
+
+[[package]]
+name = "wmde-bg-config"
+version = "1.0.3"
+dependencies = [
+ "cosmic-config",
+ "derive_setters",
+ "image",
+ "serde",
+ "tracing",
+]
 
 [[package]]
 name = "x11rb"

@@ -1,5 +1,5 @@
-name := 'cosmic-bg'
-export APPID := 'com.system76.CosmicBackground'
+name := 'wmde-bg'
+export APPID := 'fun.wmde.Background'
 
 # Use mold linker if clang and mold exists.
 clang-path := `which clang || true`

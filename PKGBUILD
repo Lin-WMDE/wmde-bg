@@ -34,7 +34,7 @@ build() {
 package() {
   cd "$srcdir/$pkgname"
   # installs /usr/bin/wmde-bg and the default schema to
-  # /usr/share/cosmic/fun.wmde.Background/v1/ (APPID from justfile)
+  # /usr/share/wmde/fun.wmde.Background/v1/ (APPID from justfile; config root is wmde)
   just rootdir="$pkgdir" prefix=/usr install
   install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE.md"
 }

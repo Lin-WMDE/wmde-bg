@@ -6,7 +6,7 @@
 # so NO conflicts/replaces cosmic-bg.
 pkgname=wmde-bg
 pkgver=1.2.0
-pkgrel=1
+pkgrel=2
 pkgdesc="WMDE wallpaper daemon (fork of cosmic-bg) - reads the fun.wmde.Background config"
 arch=('x86_64')
 url="https://wmde.fun"
@@ -14,14 +14,19 @@ license=('MPL-2.0')
 # depends: wayland client (libwayland-client via smithay-client-toolkit); image codecs are
 # static Rust crates. Verify with namcap after first build.
 depends=('glibc' 'gcc-libs' 'wayland')
-makedepends=('rust' 'cargo' 'just' 'git' 'wayland' 'clang' 'lld' 'pkgconf')
+makedepends=('rust' 'cargo' 'just' 'git' 'wayland' 'libxkbcommon' 'clang' 'lld' 'pkgconf')
+# NOTE: Cargo.toml patches libcosmic to the sibling ../libcosmic checkout. The build
+# harness arranges it next to $srcdir; a standalone makepkg run without that layout
+# fails dependency resolution.
 source=("$pkgname::git+https://github.com/Lin-WMDE/wmde-bg.git#branch=wmde")
 sha256sums=('SKIP')
 
 pkgver() {
   cd "$srcdir/$pkgname"
-  git describe --long --tags --abbrev=7 2>/dev/null | sed 's/^epoch-//;s/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' ||
-    printf '1.2.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+  local desc
+  desc=$(git describe --long --tags --abbrev=7 2>/dev/null) \
+    || desc="1.2.0-$(git rev-list --count HEAD)-g$(git rev-parse --short=7 HEAD)"
+  printf '%s' "$desc" | sed 's/^epoch-//;s/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
 build() {
@@ -37,4 +42,6 @@ package() {
   # /usr/share/wmde/fun.wmde.Background/v1/ (APPID from justfile; config root is wmde)
   just rootdir="$pkgdir" prefix=/usr install
   install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE.md"
+  # WMDE default wallpaper referenced by the default schema + Entry::fallback() (CC0).
+  install -Dm644 data/backgrounds/wmde-default.jpg "$pkgdir/usr/share/backgrounds/wmde/wmde-default.jpg"
 }

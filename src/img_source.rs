@@ -25,7 +25,6 @@ pub fn img_source(handle: &LoopHandle<CosmicBg>) -> channel::SyncSender<(String,
                                         w.image_queue.push_front(p.into());
                                     }
                                 }
-                                w.image_queue.retain(|p| !event.paths.contains(p));
                                 // TODO maybe resort or shuffle at some point?
                             }
                         }

@@ -1,0 +1,12 @@
+wmde-default.jpg - WMDE default wallpaper
+
+"Peaceful mountain lake" by Hector J. Rivas (Unsplash: @hjrc33,
+https://unsplash.com/photos/8UduFQnQ718).
+
+Dedicated to the public domain under Creative Commons CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Source file: https://commons.wikimedia.org/wiki/File:Peaceful_mountain_lake_(Unsplash).jpg
+
+Modifications for WMDE: resized to 2560px wide and EXIF metadata stripped.
+CC0 requires no attribution; this note is kept only to record provenance.

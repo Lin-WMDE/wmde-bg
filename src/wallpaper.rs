@@ -174,7 +174,7 @@ impl Wallpaper {
                                     ?why,
                                     "color gradient in config is invalid"
                                 );
-                                None
+                                continue;
                             }
                         }
                     }
@@ -209,13 +209,6 @@ impl Wallpaper {
 
     pub fn load_images(&mut self) {
         let mut image_queue = VecDeque::new();
-        let xdg_data_dirs: Vec<String> = match std::env::var("XDG_DATA_DIRS") {
-            Ok(raw_xdg_data_dirs) => raw_xdg_data_dirs
-                .split(':')
-                .map(|s| format!("{}/backgrounds/", s))
-                .collect(),
-            Err(_) => Vec::new(),
-        };
 
         match self.entry.source {
             Source::Path(ref source) => {
@@ -223,29 +216,14 @@ impl Wallpaper {
 
                 if let Ok(source) = source.canonicalize() {
                     if source.is_dir() {
-                        if xdg_data_dirs
-                            .iter()
-                            .any(|xdg_data_dir| source.starts_with(xdg_data_dir))
+                        // Recursively collect images in the directory for the slideshow.
+                        for img_path in WalkDir::new(source)
+                            .follow_links(true)
+                            .into_iter()
+                            .filter_map(Result::ok)
+                            .filter(|p| p.path().is_file())
                         {
-                            // Store paths of wallpapers to be used for the slideshow.
-                            for img_path in WalkDir::new(source)
-                                .follow_links(true)
-                                .into_iter()
-                                .filter_map(Result::ok)
-                                .filter(|p| p.path().is_file())
-                            {
-                                image_queue.push_front(img_path.path().into());
-                            }
-                        } else {
-                            // Recursively find images in custom directory
-                            for img_path in WalkDir::new(source)
-                                .follow_links(true)
-                                .into_iter()
-                                .filter_map(Result::ok)
-                                .filter(|p| p.path().is_file())
-                            {
-                                image_queue.push_front(img_path.path().into());
-                            }
+                            image_queue.push_front(img_path.path().into());
                         }
                     } else if source.is_file() {
                         image_queue.push_front(source);

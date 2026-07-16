@@ -33,14 +33,9 @@ git = "https://github.com/pop-os/libcosmic"
 features = ["calloop"]
 
 # Build against the WMDE libcosmic fork (config root cosmic -> wmde, icon theme WMDE).
-# Local path patch; crate names/dirs stay upstream (we do NOT rename internal crates).
+# Local path patch. The patched libcosmic crates keep their upstream names/dirs
+# (cosmic-config etc.); our own config crate IS renamed cosmic-bg-config -> wmde-bg-config.
 [patch."https://github.com/pop-os/libcosmic"]
-cosmic-config = { path = "../libcosmic/cosmic-config" }
-cosmic-config-derive = { path = "../libcosmic/cosmic-config-derive" }
-iced_core = { path = "../libcosmic/iced/core" }
-iced_futures = { path = "../libcosmic/iced/futures" }
-
-[patch."https://github.com/pop-os/libcosmic.git"]
 cosmic-config = { path = "../libcosmic/cosmic-config" }
 cosmic-config-derive = { path = "../libcosmic/cosmic-config-derive" }
 iced_core = { path = "../libcosmic/iced/core" }

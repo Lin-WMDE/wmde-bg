@@ -656,7 +656,7 @@ fn init_logger() {
         .event_format(log_format)
         .with_filter(tracing_subscriber::filter::filter_fn(move |metadata| {
             metadata.level() == &tracing::Level::ERROR
-                || (metadata.target().starts_with("cosmic_bg") && metadata.level() <= &log_level)
+                || (metadata.target().starts_with("wmde_bg") && metadata.level() <= &log_level)
         }));
 
     tracing_subscriber::registry().with(log_filter).init();

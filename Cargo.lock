@@ -222,6 +222,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "build_helpers"
+version = "0.14.0"
+dependencies = [
+ "cfg_aliases",
+]
+
+[[package]]
 name = "built"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -910,6 +917,7 @@ name = "iced_core"
 version = "0.14.0"
 dependencies = [
  "bitflags",
+ "build_helpers",
  "bytes",
  "dnd",
  "glam",

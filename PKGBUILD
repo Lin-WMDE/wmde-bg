@@ -13,7 +13,7 @@ url="https://wmde.fun"
 license=('MPL-2.0')
 # depends: wayland client (libwayland-client via smithay-client-toolkit); most image codecs
 # are static Rust crates, but avif decoding uses the system dav1d (image/avif-native, COSMIC
-# 1.3). Verify with namcap after first build.
+# 1.4). Verify with namcap after first build.
 depends=('glibc' 'gcc-libs' 'wayland' 'dav1d')
 makedepends=('rust' 'cargo' 'just' 'git' 'wayland' 'libxkbcommon' 'clang' 'lld' 'pkgconf' 'dav1d')
 # NOTE: Cargo.toml patches libcosmic to the sibling ../libcosmic checkout. The build
@@ -24,13 +24,13 @@ sha256sums=('SKIP')
 
 pkgver() {
   cd "$srcdir/$pkgname"
-  # WMDE unified version: 1.3 (libcosmic base) . <commits since nearest tag> . g<short>.
+  # WMDE unified version: 1.4 (libcosmic base) . <commits since nearest tag> . g<short>.
   local desc
   desc=$(git describe --long --tags --abbrev=7 2>/dev/null || true)
   if [ -n "$desc" ]; then
-    printf '1.3.%s.g%s' "$(printf '%s' "$desc" | sed -E 's/.*-([0-9]+)-g[0-9a-f]+$/\1/')" "$(git rev-parse --short=7 HEAD)"
+    printf '1.4.%s.g%s' "$(printf '%s' "$desc" | sed -E 's/.*-([0-9]+)-g[0-9a-f]+$/\1/')" "$(git rev-parse --short=7 HEAD)"
   else
-    printf '1.3.%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+    printf '1.4.%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
   fi
 }
 

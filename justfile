@@ -62,14 +62,16 @@ run *args:
     env RUST_LOG=debug RUST_BACKTRACE=1 cargo run --release {{args}}
 
 # Installs files
+#
+# The wallpaper default is NOT installed from here: which image the desktop starts on is
+# part of the theme and ships in the wmde-themes package. This daemon owns the image file
+# (installed by the PKGBUILD) and the code that draws it, not the choice.
 install:
     install -Dm0755 {{bin-src}} {{bin-dst}}
-    @just data/install
 
 # Uninstalls installed files
 uninstall:
     rm {{bin-dst}}
-    @just data/uninstall
 
 # Vendor dependencies locally
 vendor:

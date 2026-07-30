@@ -43,8 +43,8 @@ build() {
 
 package() {
   cd "$srcdir/$pkgname"
-  # installs /usr/bin/wmde-bg and the default schema to
-  # /usr/share/wmde/fun.wmde.Background/v1/ (APPID from justfile; config root is wmde)
+  # installs /usr/bin/wmde-bg only. The fun.wmde.Background default lives in the
+  # wmde-themes package: which image the desktop starts on is part of the theme.
   just rootdir="$pkgdir" prefix=/usr install
   install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE.md"
   # WMDE default wallpaper referenced by the default schema + Entry::fallback() (CC0).

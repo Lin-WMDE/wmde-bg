@@ -11,14 +11,20 @@ WMDE session service which applies backgrounds to displays. Supports the followi
 
 ## Dependencies
 
-Developers should install Rust from from https://rustup.rs/.
+This fork is Arch-only and builds in the pinned `wmde-build-full` container. Package names
+(pacman):
 
+- rust
 - just
-- cargo / rustc
-- libwayland-dev
-- libxkbcommon-dev
-- mold
-- pkg-config
+- git
+- wayland
+- libxkbcommon
+- dav1d
+- clang
+- lld
+- pkgconf
+
+See `PKGBUILD` for the authoritative dependency list.
 
 ### Install
 

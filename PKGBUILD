@@ -11,10 +11,11 @@ pkgdesc="WMDE wallpaper daemon (fork of cosmic-bg) - reads the fun.wmde.Backgrou
 arch=('x86_64')
 url="https://wmde.fun"
 license=('MPL-2.0')
-# depends: wayland client (libwayland-client via smithay-client-toolkit); most image codecs
-# are static Rust crates, but avif decoding uses the system dav1d (image/avif-native, COSMIC
-# 1.4). Verify with namcap after first build.
-depends=('glibc' 'gcc-libs' 'wayland' 'dav1d')
+# depends: wayland client (libwayland-client via smithay-client-toolkit); libxkbcommon
+# (smithay-client-toolkit default features); most image codecs are static Rust crates, but
+# avif decoding uses the system dav1d (image/avif-native, COSMIC 1.4). Verify with namcap
+# after first build.
+depends=('glibc' 'gcc-libs' 'wayland' 'libxkbcommon' 'dav1d')
 makedepends=('rust' 'cargo' 'just' 'git' 'wayland' 'libxkbcommon' 'clang' 'lld' 'pkgconf' 'dav1d')
 # NOTE: Cargo.toml patches libcosmic to the sibling ../libcosmic checkout. The build
 # harness arranges it next to $srcdir; a standalone makepkg run without that layout

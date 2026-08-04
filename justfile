@@ -1,5 +1,4 @@
 name := 'wmde-bg'
-export APPID := 'fun.wmde.Background'
 
 # Use mold linker if clang and mold exists.
 clang-path := `which clang || true`
@@ -22,8 +21,6 @@ prefix := '/usr'
 
 
 base-dir := absolute_path(clean(rootdir / prefix))
-
-export INSTALL_DIR := base-dir / 'share'
 
 cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
 bin-src := cargo-target-dir / 'release' / name

@@ -115,75 +115,90 @@ fn main() -> color_eyre::Result<()> {
 
     let config = match config_context {
         Ok(config_context) => {
-            let source = ConfigWatchSource::new(&config_context.0)
-                .expect("failed to create ConfigWatchSource");
+            match ConfigWatchSource::new(&config_context.0) {
+                Ok(source) => {
+                    let conf_context = config_context.clone();
+                    let inserted = event_loop
+                        .handle()
+                        .insert_source(source, move |(_config, keys), (), state| {
+                            let mut changes_applied = false;
 
-            let conf_context = config_context.clone();
-            event_loop
-                .handle()
-                .insert_source(source, move |(_config, keys), (), state| {
-                    let mut changes_applied = false;
+                            for key in &keys {
+                                match key.as_str() {
+                                    wmde_bg_config::BACKGROUNDS => {
+                                        tracing::debug!("updating backgrounds");
+                                        state.config.load_backgrounds(&conf_context);
+                                        changes_applied = true;
+                                    }
 
-                    for key in &keys {
-                        match key.as_str() {
-                            wmde_bg_config::BACKGROUNDS => {
-                                tracing::debug!("updating backgrounds");
-                                state.config.load_backgrounds(&conf_context);
-                                changes_applied = true;
-                            }
+                                    wmde_bg_config::DEFAULT_BACKGROUND => {
+                                        tracing::debug!("updating default background");
+                                        let entry = conf_context.default_background();
 
-                            wmde_bg_config::DEFAULT_BACKGROUND => {
-                                tracing::debug!("updating default background");
-                                let entry = conf_context.default_background();
+                                        if state.config.default_background != entry {
+                                            state.config.default_background = entry;
+                                            changes_applied = true;
+                                        }
+                                    }
 
-                                if state.config.default_background != entry {
-                                    state.config.default_background = entry;
-                                    changes_applied = true;
+                                    wmde_bg_config::SAME_ON_ALL => {
+                                        tracing::debug!("updating same_on_all");
+                                        state.config.same_on_all = conf_context.same_on_all();
+
+                                        if state.config.same_on_all {
+                                            state.config.outputs.clear();
+                                            state.config.backgrounds.clear();
+                                        } else {
+                                            state.config.load_backgrounds(&conf_context);
+                                        }
+                                        changes_applied = true;
+                                    }
+
+                                    _ => {
+                                        tracing::debug!(key, "key modified");
+                                        if let Some(output) = key.strip_prefix("output.")
+                                            && let Ok(new_entry) = conf_context.entry(key)
+                                            && let Some(existing) = state.config.entry_mut(output)
+                                        {
+                                            *existing = new_entry;
+                                            changes_applied = true;
+                                        }
+                                    }
                                 }
                             }
 
-                            wmde_bg_config::SAME_ON_ALL => {
-                                tracing::debug!("updating same_on_all");
-                                state.config.same_on_all = conf_context.same_on_all();
+                            if changes_applied {
+                                state.apply_backgrounds();
 
-                                if state.config.same_on_all {
-                                    state.config.outputs.clear();
-                                } else {
-                                    state.config.load_backgrounds(&conf_context);
-                                }
-                                state.config.outputs.clear();
-                                changes_applied = true;
+                                #[cfg(target_env = "gnu")]
+                                malloc::trim();
+
+                                tracing::debug!(
+                                    same_on_all = state.config.same_on_all,
+                                    outputs = ?state.config.outputs,
+                                    backgrounds = ?state.config.backgrounds,
+                                    default_background = ?state.config.default_background.source,
+                                    "new state"
+                                );
                             }
+                        })
+                        .map_err(|err| err.error);
 
-                            _ => {
-                                tracing::debug!(key, "key modified");
-                                if let Some(output) = key.strip_prefix("output.")
-                                    && let Ok(new_entry) = conf_context.entry(key)
-                                    && let Some(existing) = state.config.entry_mut(output)
-                                {
-                                    *existing = new_entry;
-                                    changes_applied = true;
-                                }
-                            }
-                        }
-                    }
-
-                    if changes_applied {
-                        state.apply_backgrounds();
-
-                        #[cfg(target_env = "gnu")]
-                        malloc::trim();
-
-                        tracing::debug!(
-                            same_on_all = state.config.same_on_all,
-                            outputs = ?state.config.outputs,
-                            backgrounds = ?state.config.backgrounds,
-                            default_background = ?state.config.default_background.source,
-                            "new state"
+                    if let Err(why) = inserted {
+                        tracing::error!(
+                            ?why,
+                            "failed to watch for config changes, a daemon restart is required to apply them"
                         );
                     }
-                })
-                .expect("failed to insert config watching source into event loop");
+                }
+
+                Err(why) => {
+                    tracing::error!(
+                        ?why,
+                        "failed to watch for config changes, a daemon restart is required to apply them"
+                    );
+                }
+            }
 
             Config::load(&config_context).unwrap_or_else(|why| {
                 tracing::error!(?why, "Config file error, falling back to defaults");

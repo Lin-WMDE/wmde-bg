@@ -43,7 +43,18 @@ impl Context {
     }
 
     pub fn default_background(&self) -> Entry {
-        self.entry("all").unwrap_or_else(|_| Entry::fallback())
+        match self.entry("all") {
+            Ok(entry) => entry,
+            Err(why) => {
+                if why.is_err() {
+                    tracing::error!(?why, "error reading default background, using fallback");
+                } else {
+                    tracing::debug!(?why, "no default background stored, using fallback");
+                }
+
+                Entry::fallback()
+            }
+        }
     }
 
     /// Get the entry for an output from cosmic-config.
@@ -249,12 +260,15 @@ impl Config {
         self.backgrounds.clear();
         self.outputs.clear();
 
-        let entries = context
-            .backgrounds()
-            .into_iter()
-            .filter_map(|output| context.entry(&["output.", &output].concat()).ok());
+        for output in context.backgrounds() {
+            let entry = match context.entry(&["output.", &output].concat()) {
+                Ok(entry) => entry,
+                Err(why) => {
+                    tracing::error!(?why, output, "error reading background, ignoring output");
+                    continue;
+                }
+            };
 
-        for entry in entries {
             self.outputs.insert(entry.output.clone());
             self.backgrounds.push(entry);
         }
@@ -297,7 +311,7 @@ impl Config {
             context.0.set(&output_key, entry.clone())?;
         }
 
-        if let Some(old) = self.entry_mut(&output_key) {
+        if let Some(old) = self.entry_mut(&entry.output) {
             *old = entry;
         } else if entry.output != "all" {
             self.backgrounds.push(entry);

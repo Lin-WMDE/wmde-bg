@@ -144,15 +144,27 @@ impl Wallpaper {
                         let img = self.current_image.as_ref().unwrap();
 
                         match self.entry.scaling_mode {
-                            ScalingMode::Fit(color) => {
-                                Some(crate::scaler::fit(img, &color, width, height))
-                            }
+                            ScalingMode::Fit(color) => Some(crate::scaler::fit(
+                                img,
+                                &color,
+                                width,
+                                height,
+                                &self.entry.filter_method,
+                            )),
 
-                            ScalingMode::Zoom => Some(crate::scaler::zoom(img, width, height)),
+                            ScalingMode::Zoom => Some(crate::scaler::zoom(
+                                img,
+                                width,
+                                height,
+                                &self.entry.filter_method,
+                            )),
 
-                            ScalingMode::Stretch => {
-                                Some(crate::scaler::stretch(img, width, height))
-                            }
+                            ScalingMode::Stretch => Some(crate::scaler::stretch(
+                                img,
+                                width,
+                                height,
+                                &self.entry.filter_method,
+                            )),
                         }
                     }
 

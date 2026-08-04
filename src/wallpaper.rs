@@ -5,7 +5,7 @@ use crate::{CosmicBg, CosmicBgLayer};
 use std::collections::VecDeque;
 use std::fs;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use wmde_bg_config::state::State;
@@ -35,6 +35,8 @@ pub struct Wallpaper {
     // Cache of source image, if `current_source` is a `Source::Path`
     current_image: Option<image::DynamicImage>,
     timer_token: Option<RegistrationToken>,
+    // Kept alive for the lifetime of the wallpaper; dropping it removes the inotify watches.
+    watcher: Option<RecommendedWatcher>,
 }
 
 impl Drop for Wallpaper {
@@ -59,6 +61,7 @@ impl Wallpaper {
             current_image: None,
             image_queue: VecDeque::default(),
             timer_token: None,
+            watcher: None,
             loop_handle,
             queue_handle,
         };
@@ -181,6 +184,8 @@ impl Wallpaper {
                                     ?why,
                                     "color gradient in config is invalid"
                                 );
+                                // Deliberate divergence: upstream leaves None here and
+                                // unwraps it below, which panics. Keep the `continue`.
                                 continue;
                             }
                         }
@@ -221,21 +226,7 @@ impl Wallpaper {
             Source::Path(ref source) => {
                 tracing::debug!(?source, "loading images");
 
-                if let Ok(source) = source.canonicalize() {
-                    if source.is_dir() {
-                        // Recursively collect images in the directory for the slideshow.
-                        for img_path in WalkDir::new(source)
-                            .follow_links(true)
-                            .into_iter()
-                            .filter_map(Result::ok)
-                            .filter(|p| p.path().is_file())
-                        {
-                            image_queue.push_front(img_path.path().into());
-                        }
-                    } else if source.is_file() {
-                        image_queue.push_front(source);
-                    }
-                }
+                image_queue = collect_image_paths(source);
 
                 if image_queue.len() > 1 {
                     let image_slice = image_queue.make_contiguous();
@@ -278,10 +269,14 @@ impl Wallpaper {
         self.image_queue = image_queue;
     }
 
-    fn watch_source(&self, tx: calloop::channel::SyncSender<(String, notify::Event)>) {
+    fn watch_source(&mut self, tx: calloop::channel::SyncSender<(String, notify::Event)>) {
         let Source::Path(ref source) = self.entry.source else {
             return;
         };
+
+        // Watch the canonicalized path: `load_images` canonicalizes before walking,
+        // so event paths must share the prefix of the paths stored in the queue.
+        let source = source.canonicalize().unwrap_or_else(|_| source.clone());
 
         let output = self.entry.output.clone();
         let mut watcher = match RecommendedWatcher::new(
@@ -293,18 +288,28 @@ impl Wallpaper {
             notify::Config::default(),
         ) {
             Ok(w) => w,
-            Err(_) => return,
+            Err(why) => {
+                tracing::warn!(?why, "failed to create a watcher for the wallpaper source");
+                return;
+            }
         };
 
         tracing::debug!(output = self.entry.output, "watching source");
 
-        if let Ok(m) = fs::metadata(source) {
+        if let Ok(m) = fs::metadata(&source) {
             if m.is_dir() {
-                let _ = watcher.watch(source, RecursiveMode::Recursive);
+                let _ = watcher.watch(&source, RecursiveMode::Recursive);
             } else if m.is_file() {
-                let _ = watcher.watch(source, RecursiveMode::NonRecursive);
+                let _ = watcher.watch(&source, RecursiveMode::NonRecursive);
             }
+        } else {
+            tracing::warn!(
+                source = %source.display(),
+                "wallpaper source does not exist; changes will not be watched"
+            );
         }
+
+        self.watcher = Some(watcher);
     }
 
     fn register_timer(&mut self) {
@@ -341,6 +346,9 @@ impl Wallpaper {
                             return TimeoutAction::ToDuration(Duration::from_secs(rotation_freq));
                         }
 
+                        // The timer source is dropped; clear the stale token so
+                        // `ensure_active` can register a new timer later.
+                        item.timer_token = None;
                         TimeoutAction::Drop
                     },
                 )
@@ -354,6 +362,49 @@ impl Wallpaper {
             l.needs_redraw = true;
         }
     }
+
+    /// Displays a queued image and restarts the rotation timer after files
+    /// arrive in a source that was empty, or whose timer already dropped.
+    pub fn ensure_active(&mut self) {
+        if self.current_source.is_none()
+            && let Some(next) = self.image_queue.pop_front()
+        {
+            self.current_source = Some(Source::Path(next.clone()));
+            if let Err(err) = self.save_state() {
+                error!("{err}");
+            }
+
+            self.image_queue.push_back(next);
+            self.clear_image();
+            self.draw();
+        }
+
+        if self.timer_token.is_none() {
+            self.register_timer();
+        }
+    }
+}
+
+fn collect_image_paths(source: &Path) -> VecDeque<PathBuf> {
+    let mut image_queue = VecDeque::new();
+
+    if let Ok(source) = source.canonicalize() {
+        if source.is_dir() {
+            // Recursively collect images in the directory for the slideshow.
+            for img_path in WalkDir::new(source)
+                .follow_links(true)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|p| p.path().is_file())
+            {
+                image_queue.push_front(img_path.path().into());
+            }
+        } else if source.is_file() {
+            image_queue.push_front(source);
+        }
+    }
+
+    image_queue
 }
 
 fn decode(mut reader: ImageReader<BufReader<fs::File>>) -> ImageResult<DynamicImage> {
@@ -412,40 +463,8 @@ mod tests {
         File::create(root.join("img1.png")).unwrap();
         File::create(subdir.join("img2.png")).unwrap();
 
-        // Create a Wallpaper instance with Source pointing to root
-        // We need to mock dependencies or use minimal construction if possible.
-        // Wallpaper::new requires QueueHandle and LoopHandle which are hard to mock here.
-        // Instead, we can verify the logic by extracting the loading logic or just replicating it here to confirm behavior.
+        let image_queue = collect_image_paths(root);
 
-        // Let's replicate the logic from load_images for custom directories check
-        let source = root.to_path_buf();
-        let mut image_queue = VecDeque::new();
-
-        // Assume XDG_DATA_DIRS does NOT contain this temp dir (which is true)
-        let xdg_data_dirs: Vec<String> = Vec::new();
-
-        if let Ok(source) = source.canonicalize() {
-            if source.is_dir() {
-                if xdg_data_dirs
-                    .iter()
-                    .any(|xdg_data_dir| source.starts_with(xdg_data_dir))
-                {
-                    // This block should NOT be hit
-                    panic!("Test setup error: temp dir shouldn't be in XDG_DATA_DIRS");
-                } else {
-                    for img_path in WalkDir::new(source)
-                        .follow_links(true)
-                        .into_iter()
-                        .filter_map(Result::ok)
-                        .filter(|p| p.path().is_file())
-                    {
-                        image_queue.push_front(img_path.path().into());
-                    }
-                }
-            }
-        }
-
-        // With WalkDir, we expect to find 2 images (recursive)
         assert_eq!(image_queue.len(), 2, "Should find 2 images recursively");
         assert!(
             image_queue
@@ -456,6 +475,64 @@ mod tests {
             image_queue
                 .iter()
                 .any(|p: &PathBuf| p.ends_with("img2.png"))
+        );
+    }
+
+    #[test]
+    fn test_single_file_loading() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("img1.png");
+        File::create(&file).unwrap();
+
+        let image_queue = collect_image_paths(&file);
+
+        assert_eq!(image_queue.len(), 1);
+        assert!(image_queue[0].ends_with("img1.png"));
+    }
+
+    #[test]
+    fn test_decode_applies_exif_orientation() {
+        // Minimal EXIF APP1 segment: "Exif\0\0" identifier, a little-endian TIFF
+        // header, and an IFD0 with the single Orientation (0x0112) tag set to 6
+        // (rotate 90 degrees clockwise), which swaps width and height.
+        const EXIF_APP1: [u8; 36] = [
+            0xFF, 0xE1, // APP1 marker
+            0x00, 0x22, // segment length (34, includes these two bytes)
+            b'E', b'x', b'i', b'f', 0x00, 0x00, // Exif identifier
+            0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, // TIFF header, IFD0 at offset 8
+            0x01, 0x00, // one IFD0 entry
+            0x12, 0x01, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, // Orientation, SHORT, count 1
+            0x06, 0x00, 0x00, 0x00, // value 6
+            0x00, 0x00, 0x00, 0x00, // no next IFD
+        ];
+
+        let mut jpeg = Vec::new();
+        DynamicImage::ImageRgb8(image::RgbImage::new(2, 1))
+            .write_to(
+                &mut std::io::Cursor::new(&mut jpeg),
+                image::ImageFormat::Jpeg,
+            )
+            .unwrap();
+
+        // Splice the APP1 segment right after the SOI marker.
+        let mut data = jpeg[..2].to_vec();
+        data.extend_from_slice(&EXIF_APP1);
+        data.extend_from_slice(&jpeg[2..]);
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("oriented.jpg");
+        fs::write(&path, data).unwrap();
+
+        let reader = ImageReader::open(&path)
+            .unwrap()
+            .with_guessed_format()
+            .unwrap();
+        let decoded = decode(reader).unwrap();
+
+        assert_eq!(
+            (decoded.width(), decoded.height()),
+            (1, 2),
+            "orientation 6 should swap the 2x1 dimensions"
         );
     }
 }

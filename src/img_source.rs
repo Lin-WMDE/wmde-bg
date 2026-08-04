@@ -21,11 +21,14 @@ pub fn img_source(handle: &LoopHandle<CosmicBg>) -> channel::SyncSender<(String,
                                 .filter(|w| w.entry.output == source)
                             {
                                 for p in &event.paths {
-                                    if !w.image_queue.contains(p) {
-                                        w.image_queue.push_front(p.into());
+                                    // Enqueue regular files only, and append so new
+                                    // files do not jump the configured order.
+                                    if p.is_file() && !w.image_queue.contains(p) {
+                                        w.image_queue.push_back(p.into());
                                     }
                                 }
                                 // TODO maybe resort or shuffle at some point?
+                                w.ensure_active();
                             }
                         }
                         notify::EventKind::Remove(_)
